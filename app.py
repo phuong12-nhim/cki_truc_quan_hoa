@@ -1,10 +1,10 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
+from XuLy.data_loader import load_data
 
-# ==========================================
-# 1. CẤU HÌNH TRANG & BẢNG MÀU (CHUNG)
-# ==========================================
+from tabs.overview import render as render_overview
+from tabs.health import render as render_health
+from tabs.productivity import render as render_productivity
+
 st.set_page_config(
     page_title="The Digital Balance Dashboard",
     page_icon="📱",
@@ -12,158 +12,126 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Khai báo bảng màu "Digital Well-being" thống nhất cho cả nhóm
-COLOR_PRIMARY = "#7B2CBF"   # Tím (Deep work, Giấc ngủ)
-COLOR_SECONDARY = "#00F5D4" # Xanh ngọc (Onscreen, Tech)
-COLOR_ALERT = "#FF5A5F"     # Đỏ san hô (Stress, Cảnh báo)
-COLOR_BG_GRAY = "#F8F9FA"
 
-# Hoán đổi màu mượt mà cho các biểu đồ liên tục
-COLOR_SCALE = [COLOR_PRIMARY, COLOR_SECONDARY, COLOR_ALERT]
-
+df = load_data()
 # ==========================================
-# 2. LOAD VÀ CACHE DỮ LIỆU (NGƯỜI 1 SETUP)
+# SIDEBAR & FILTERS
 # ==========================================
-@st.cache_data
-def load_data():
-    """
-    Hàm đọc dữ liệu từ file CSV. 
-    Lưu ý: Bạn cần kiểm tra và sửa chính xác tên các cột 
-    trong file CSV của bạn nếu chúng có khác biệt.
-    """
-    # Giả định file nằm trong thư mục data/
-    df = pd.read_csv("Smartphone_Usage_Productivity_Dataset_50000.csv")
-    return df
 
-try:
-    df_raw = load_data()
-except FileNotFoundError:
-    st.error("Không tìm thấy file dữ liệu! Vui lòng tạo thư mục 'data' và bỏ file 'Smartphone_Usage_Productivity_Dataset_50000.csv' vào.")
-    st.stop()
+st.title("📱 The Digital Balance")
 
-def preprocess(df):
+st.sidebar.markdown(
+    "Trực quan hóa tác động của Smartphone đến "
+    "Sức khỏe và Năng suất làm việc"
+)
 
-    st.subheader("DEBUG DATA")
+st.markdown(
+    f"Phân tích chuyên sâu trên mẫu dữ liệu gồm "
+    f"**{len(df):,}** người dùng sau khi lọc."
+)
 
-    st.write("5 dòng đầu:")
-    st.write(df.head())
-
-    st.write("Tên cột:")
-    st.write(df.columns)
-
-    st.write("Kiểu dữ liệu:")
-    st.write(df.dtypes)
-
-    st.write("Missing values:")
-    st.write(df.isnull().sum())
-
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.replace(" ", "_")
-        .str.replace("-", "_")
-    )
-
-    df["Age"] = pd.to_numeric(df["Age"], errors="coerce")
-
-    df = df.dropna()
-
-    return df
-
-df = df_raw.copy()
-# ==========================================
-# 3. SIDEBAR & BỘ LỌC TƯƠNG TÁC (NGƯỜI 1 SETUP)
-# ==========================================
-st.title("The Digital Balance")
-st.sidebar.markdown("Trực quan hóa tác động của Smartphone đến Sức khỏe và Năng suất làm việc")
-st.markdown(f"Phân tích chuyên sâu trên mẫu dữ liệu gồm **{len(df):,}** người dùng sau khi lọc.")
 st.markdown("---")
 
-st.sidebar.header("BỘ LỌC DỮ LIỆU")
-st.sidebar.markdown("Thay đổi các tùy chọn dưới đây để cập nhật toàn bộ Dashboard.")
+st.sidebar.header("🔎 Bộ lọc dữ liệu")
 
-# Bộ lọc 1: Hệ điều hành
-os_options = ["Tất cả"] + list(df_raw['Device_OS'].unique()) if 'Device_OS' in df_raw.columns else ["Tất cả"]
-selected_os = st.sidebar.selectbox("Hệ điều hành", os_options)
+# =========================
+# Device Type
+# =========================
 
-# Bộ lọc 2: Giới tính
-gender_options = ["Tất cả"] + list(df_raw['Gender'].unique()) if 'Gender' in df_raw.columns else ["Tất cả"]
-selected_gender = st.sidebar.selectbox("Giới tính", gender_options)
+device_options = ["Tất cả"] + sorted(
+    df["Device_Type"].unique().tolist()
+)
 
-# Áp dụng bộ lọc vào dữ liệu chung
-if selected_os != "Tất cả":
-    df = df[df['Device_OS'] == selected_os]
+selected_device = st.sidebar.selectbox(
+    "Thiết bị sử dụng",
+    device_options
+)
+
+# =========================
+# Gender
+# =========================
+
+gender_options = ["Tất cả"] + sorted(
+    df["Gender"].unique().tolist()
+)
+
+selected_gender = st.sidebar.selectbox(
+    "Giới tính",
+    gender_options
+)
+
+# =========================
+# Occupation
+# =========================
+
+occupation_options = ["Tất cả"] + sorted(
+    df["Occupation"].unique().tolist()
+)
+
+selected_occupation = st.sidebar.selectbox(
+    "Nghề nghiệp",
+    occupation_options
+)
+
+# ==========================================
+# APPLY FILTERS
+# ==========================================
+
+filtered_df = df.copy()
+
+if selected_device != "Tất cả":
+    filtered_df = filtered_df[
+        filtered_df["Device_Type"] == selected_device
+    ]
+
 if selected_gender != "Tất cả":
-    df = df[df['Gender'] == selected_gender]
+    filtered_df = filtered_df[
+        filtered_df["Gender"] == selected_gender
+    ]
 
+if selected_occupation != "Tất cả":
+    filtered_df = filtered_df[
+        filtered_df["Occupation"] == selected_occupation
+    ]
 
-# ==========================================
-# 4. KHU VỰC TIÊU ĐỀ & KPI (CHUNG)
-# ==========================================
-
-# Hàng số KPI trực quan nhanh
+# KPI Overview
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+
 with kpi1:
-    st.metric(label="Tổng số mẫu phân tích", value=f"{len(df):,}")
+    st.metric(
+        "👥 Tổng người dùng",
+        f"{len(filtered_df):,}"
+    )
+
 with kpi2:
-    # Sửa lại tên cột tương ứng trong file của bạn nếu khác 'Screen_Time'
-    screen_candidates = df.columns[df.columns.str.contains('Screen|Time', case=False)]
+    st.metric(
+        "📱 Giờ dùng điện thoại TB",
+        round(filtered_df["Daily_Phone_Hours"].mean(), 1)
+    )
 
-    if 'Screen_Time' in df.columns:
-        screen_col = 'Screen_Time'
-    elif len(screen_candidates) > 0:    
-        screen_col = screen_candidates[0]
-    else:
-        st.error("Không tìm thấy cột thời gian sử dụng màn hình.")
-        st.stop()
-
-    st.metric(label="Thời gian On-screen TB", value=f"{round(df[screen_col].mean(), 1)} giờ")
 with kpi3:
-    prod_col = 'Work_Productivity_Score' if 'Work_Productivity_Score' in df.columns else df.columns[df.columns.str.contains('Productivity', case=False)][0]
-    st.metric(label="Điểm Năng suất TB", value=f"{round(df[prod_col].mean(), 1)}/100")
+    st.metric(
+        "😴 Giờ ngủ TB",
+        round(filtered_df["Sleep_Hours"].mean(), 1)
+    )
+
 with kpi4:
-    stress_col = 'Stress_Level' if 'Stress_Level' in df.columns else df.columns[df.columns.str.contains('Stress', case=False)][0]
-    st.metric(label="Mức độ Stress TB", value=f"{round(df[stress_col].mean(), 1)}/10")
-
-
-# ==========================================
-# 5. ĐỊNH NGHĨA CÁC HÀM CHO TỪNG TAB
-# ==========================================
-
-# --- NGƯỜI 1: TAB TỔNG QUAN ---
-def render_tab_tong_quan(data):
-    st.header("Chân dung Người dùng & Tổng quan Hành vi")
+    st.metric(
+        "🎯 Năng suất TB",
+        round(filtered_df["Work_Productivity_Score"].mean(), 1)
+    )
     
-
-
-# --- NGƯỜI 2: TAB SỨC KHỎE & GIẤC NGỦ ---
-def render_tab_suc_khoe(data):
-    st.header("Phân tích Sức khỏe Sinh học & Áp lực Tâm lý")
-    
-
-
-# --- NGƯỜI 3: TAB NĂNG SUẤT ---
-def render_tab_nang_suat(data):
-    st.header("Tác động của Công nghệ tới Hiệu suất làm việc")
-    
-    
-
-
-# ==========================================
-# 6. KHỞI TẠO TABS VÀ PHÂN PHỐI HÀM (CHUNG)
-# ==========================================
-tab_overview, tab_health, tab_productivity = st.tabs([
-    "📊 Tổng quan người dùng", 
-    "❤️ Sức khỏe & Giấc ngủ", 
-    "🎯 Phân tích Năng suất"
+tab1, tab2, tab3 = st.tabs([
+    "📊 Tổng quan",
+    "❤️ Sức khỏe",
+    "🎯 Năng suất"
 ])
 
-# Chia việc hiển thị dữ liệu về đúng các Tab đã tạo
-with tab_overview:
-    render_tab_tong_quan(df)
+with tab1:
+    render_overview(filtered_df)
 
-with tab_health:
-    render_tab_suc_khoe(df)
+with tab2:
+    render_health(filtered_df)
 
-with tab_productivity:
-    render_tab_nang_suat(df)
+with tab3:
+    render_productivity(filtered_df)
