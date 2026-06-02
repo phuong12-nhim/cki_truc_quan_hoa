@@ -2,15 +2,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import pandas as pd
-
 from XuLy.config import *
-
 
 def _sample_data(df, sample_size=2000):
     if len(df) > sample_size:
         return df.sample(sample_size, random_state=42)
     return df.copy()
-
 
 def _add_trendline(fig, df, x_col, y_col):
     trend_df = df[[x_col, y_col]].dropna().sort_values(x_col)
