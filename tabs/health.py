@@ -4,25 +4,25 @@ import plotly.express as px
 
 def style_chart(fig):
     fig.update_layout(
-        plot_bgcolor="#0E0E12",
-        paper_bgcolor="#0E0E12",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=10, r=10, t=30, b=10),
-        font=dict(family="Inter, Arial, sans-serif", size=10, color="#EAEAEA"),
+        font=dict(family="Inter, Arial, sans-serif", size=10, color="#808080"),
         showlegend=False
     )
     fig.update_yaxes(
         showgrid=True,
-        gridcolor="#202026",
+        gridcolor="#E0E0E0",
         zeroline=False,
-        tickfont=dict(size=9, color="#90909A"),
-        title_font=dict(size=10, color="#D4A373", weight="bold")
+        tickfont=dict(size=9),
+        title_font=dict(size=10, color="#A95D24", weight="bold")
     )
     fig.update_xaxes(
         showgrid=False,
-        linecolor="#2D2D38",
+        linecolor="#B0B0B0",
         linewidth=1,
-        tickfont=dict(size=9, color="#90909A"),
-        title_font=dict(size=10, color="#D4A373", weight="bold")
+        tickfont=dict(size=9),
+        title_font=dict(size=10, color="#A95D24", weight="bold")
     )
     return fig
 
@@ -39,10 +39,10 @@ def render(data):
         
     st.markdown("---")
     
-    chart_col1, chart_col2, chart_col3 = st.columns([1.1, 1.1, 0.8])
+    chart_col1, chart_col2, chart_col3 = st.columns([1, 1, 1])
     
     with chart_col1:
-        st.subheader("😴 Giờ ngủ và Mức độ Stress")
+        st.subheader("😴 Giờ ngủ vs Stress")
         sleep_stress = data.groupby("Sleep_Hours")["Stress_Level"].mean().reset_index()
         fig1 = px.line(
             sleep_stress,
@@ -58,10 +58,10 @@ def render(data):
         )
         fig1.update_layout(hovermode="x unified", height=280)
         style_chart(fig1)
-        st.plotly_chart(fig1, width="stretch")
+        st.plotly_chart(fig1, use_container_width=True)
 
     with chart_col2:
-        st.subheader("☕ Caffeine theo Mức Stress")
+        st.subheader("☕ Caffeine theo Stress")
         data_sorted = data.sort_values(by="Stress_Level")
         
         colors = [
@@ -81,18 +81,17 @@ def render(data):
         fig2.update_traces(
             boxpoints="outliers", 
             jitter=0.2, 
-            opacity=0.6,
-            line=dict(width=1.2)
+            opacity=0.8
         )
         fig2.update_layout(height=280, boxmode="overlay")
         fig2.update_xaxes(type="category")
         style_chart(fig2)
-        st.plotly_chart(fig2, width="stretch")
+        st.plotly_chart(fig2, use_container_width=True)
 
     with chart_col3:
-        st.subheader("📱 Thời gian On-screen")
+        st.subheader("📱 On-screen: Thường vs Nghỉ")
+        
         comparison_df = pd.DataFrame({
-            "Phân loại": ["Thời gian sử dụng", "Thời gian sử dụng"],
             "Thời điểm": ["Ngày thường", "Cuối tuần"],
             "Số giờ sử dụng": [
                 data["Daily_Phone_Hours"].mean(),
@@ -102,32 +101,21 @@ def render(data):
         
         fig3 = px.bar(
             comparison_df,
-            x="Phân loại",
+            x="Thời điểm",
             y="Số giờ sử dụng",
             color="Thời điểm",
-            barmode="group",
             text_auto=".1f",
-            labels={"Số giờ sử dụng": "Giờ TB"},
+            labels={"Thời điểm": "", "Số giờ sử dụng": "Giờ TB"},
             color_discrete_sequence=["#A2D2FF", "#BDB2FF"]
         )
         fig3.update_traces(
             textposition="outside",
-            textfont=dict(size=10, color="#FFFFFF", weight="bold")
+            textfont=dict(size=10, weight="bold")
         )
         fig3.update_layout(
-            bargap=0.4,
-            bargroupgap=0.05,
+            bargap=0.5,
             height=280,
-            xaxis_title=None,
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=-0.2,
-                xanchor="center",
-                x=0.5,
-                font=dict(size=9, color="#FFFFFF")
-            )
+            showlegend=False
         )
         style_chart(fig3)
-        st.plotly_chart(fig3, width="stretch")
+        st.plotly_chart(fig3, use_container_width=True)
