@@ -2,6 +2,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import pandas as pd
+import numpy as np
 from XuLy.config import *
 
 def _sample_data(df, sample_size=2000):
@@ -10,30 +11,33 @@ def _sample_data(df, sample_size=2000):
     return df.copy()
 
 def _add_trendline(fig, df, x_col, y_col):
-    trend_df = df[[x_col, y_col]].dropna().sort_values(x_col)
+    trend_df = df[[x_col, y_col]].dropna()
 
-    if len(trend_df) < 2 or trend_df[x_col].nunique() < 2:
+    if len(trend_df) < 2:
         return
 
-    x = trend_df[x_col]
-    y = trend_df[y_col]
-    slope = x.cov(y) / x.var()
-    intercept = y.mean() - slope * x.mean()
+    x = pd.to_numeric(trend_df[x_col], errors="coerce")
+    y = pd.to_numeric(trend_df[y_col], errors="coerce")
 
-    fig.add_trace(
-        go.Scatter(
-            x=x.tolist(),
-            y=(slope * x + intercept).tolist(),
-            mode="lines",
-            name="Đường xu hướng",
-            line=dict(color=COLOR_ALERT, width=3),
-            hovertemplate=(
-                "On-screen: %{x:.1f} giờ<br>"
-                "Năng suất dự đoán: %{y:.2f}<extra></extra>"
-            )
+    valid = x.notna() & y.notna()
+    x = x[valid]
+    y = y[valid]
+
+    if len(x) < 2:
+        return
+
+    slope, intercept = np.polyfit(x, y, 1)
+
+    fig.add_scatter(
+        x=x,
+        y=slope * x + intercept,
+        mode="lines",
+        name="Đường xu hướng",
+        line=dict(
+            color=COLOR_ALERT,
+            width=3
         )
     )
-
 
 def render(data):
     st.header("🎯 Năng suất")
@@ -171,4 +175,3 @@ def render(data):
         fig_onscreen.update_layout(bargap=0.6)
 
         st.plotly_chart(fig_onscreen, use_container_width=True)
-
